@@ -319,8 +319,10 @@ header{height:56px;background:#fff;border-bottom:1px solid #dadce0;display:flex;
 button{border:none;background:#1a73e8;color:white;padding:8px 14px;border-radius:4px;font-size:13px;font-weight:500;cursor:pointer;transition:0.15s;}
 button:hover{background:#1765cc;}
 /* Keep every toolbar button the same height/shape so the row reads as
-   symmetrical, regardless of which button sets its own background color. */
-header button{height:34px;box-sizing:border-box;display:inline-flex;align-items:center;gap:4px;white-space:nowrap;}
+   symmetrical, regardless of which button sets its own background color.
+   Text wraps onto multiple lines so the button stays narrow instead of
+   stretching out sideways. */
+header button{height:44px;width:82px;box-sizing:border-box;display:inline-flex;align-items:center;justify-content:center;text-align:center;gap:0;white-space:normal;word-break:break-word;line-height:1.15;font-size:11px;padding:4px 6px;overflow:hidden;flex-shrink:0;}
 #toolbar{display:none;background:#fff;border-bottom:1px solid #dadce0;padding:10px 14px;gap:16px;flex-wrap:wrap;align-items:center;}
 #uploadBox{display:none;background:#fff;border-bottom:1px solid #dadce0;padding:14px;}
 label{font-size:13px;color:#5f6368;display:flex;align-items:center;gap:6px;}
@@ -534,10 +536,10 @@ color: #141414;
 
 <button onclick="toggleExtract()">Extract Column</button>
 
-<button onclick="toggleAutoVocab()" style="background:#2b7cff;">⚡ Auto Vocab Builder</button>
+<button onclick="toggleAutoVocab()" style="background:#2b7cff;">Auto Vocab Builder</button>
 
-<button onclick="toggleSpecialExtract()" style="background:#8e24aa;">📦 Special Extract Column</button>
-<button onclick="toggleSpecialUpload()" style="background:#8e24aa;">📥 Special Upload Column</button>
+<button onclick="toggleSpecialExtract()" style="background:#8e24aa;">Special Extract Column</button>
+<button onclick="toggleSpecialUpload()" style="background:#8e24aa;">Special Upload Column</button>
 
 <button onclick="toggleReader()">Reader Options</button>
 
@@ -555,14 +557,14 @@ color: #141414;
 <button onclick="startReading()">Start Reading</button>
 <button onclick="stopReading()">Stop</button>
 <button id="openFinder">Frequency Finder</button>
-<button id="openTabler" class="nav-btn">⊞ Tabler</button>
-  <button onclick="window.location.href='audio-converter.html'">🎵 Audio Converter</button> 
+<button id="openTabler" class="nav-btn">Tabler</button>
+  <button onclick="window.location.href='audio-converter.html'">Audio Converter</button> 
 
   
-  <!-- AI ACTIVATE BUTTON -->
-<button id="aiActivate" class="ai-activate">🚀 Turn On AI</button>
+  <!-- AI ACTIVATE BUTTON (hidden — not set up correctly yet) -->
+<button id="aiActivate" class="ai-activate" style="display:none;">Turn On AI</button>
 <!-- AI TOGGLE BUTTON (hidden until loaded) -->
-<button id="aiToggle" class="ai-toggle">🤖 AI Assistant</button>
+<button id="aiToggle" class="ai-toggle">AI Assistant</button>
 <!-- AI PANEL -->
 <div id="aiPanel" class="ai-panel">
   <div class="ai-panel-header">
@@ -607,8 +609,8 @@ Press Ctrl+Enter to run"
 </div>
 
 
-<button id="recordBtn" style="background:#28a745;">🎙️ Macro Audio Record</button>
-<button id="stopRecordBtn" style="background:#28a745; display:none;">⏹ Stop Macro Recording</button>
+<button id="recordBtn" style="background:#28a745;">Macro Audio Record</button>
+<button id="stopRecordBtn" style="background:#28a745; display:none;">Stop Macro Recording</button>
 <div id="recordingTimer" style="display:none; padding:8px 14px; background:#222; color:#28a745; border-radius:4px; font-weight:bold; font-size:13px; font-family:monospace; height:34px; box-sizing:border-box; align-items:center;">
 00:00
 </div>
@@ -617,8 +619,8 @@ Press Ctrl+Enter to run"
 Recording in progress...
 </div>
 
-<button id="resetHeatmapBtn" onclick="resetHeatmap()" style="background:#5f6368;">🔄 Reset Heatmap</button>
-<button id="curtainDataBtn" onclick="toggleCurtainData()" style="background:#8e24aa;">🎭 See Behind-Curtain Data</button>
+<button id="resetHeatmapBtn" onclick="resetHeatmap()" style="background:#5f6368;">Reset Heatmap</button>
+<button id="curtainDataBtn" onclick="toggleCurtainData()" style="background:#8e24aa;">See Behind-Curtain Data</button>
 
 
 </header>

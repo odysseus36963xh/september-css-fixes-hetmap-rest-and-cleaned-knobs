@@ -423,14 +423,14 @@ function toggleCurtainData() {
     if (window.__curtainDataVisible) {
         renderCurtainData();
         __curtainTimeInterval = setInterval(updateCurtainTimeDisplay, 1000);
-        if (btn) btn.textContent = "🎭 Hide Behind-Curtain Data";
+        if (btn) btn.textContent = "Hide Behind-Curtain Data";
     } else {
         clearCurtainData();
         if (__curtainTimeInterval) {
             clearInterval(__curtainTimeInterval);
             __curtainTimeInterval = null;
         }
-        if (btn) btn.textContent = "🎭 See Behind-Curtain Data";
+        if (btn) btn.textContent = "See Behind-Curtain Data";
     }
 }
 window.toggleCurtainData = toggleCurtainData;
