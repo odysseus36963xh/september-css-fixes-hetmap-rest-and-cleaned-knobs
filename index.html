@@ -73,6 +73,13 @@
     display: inline-block;
 }
 
+/* -----------------------------------------
+   Vocab Highlighter — known words glow yellow
+   ----------------------------------------- */
+#sheet td.vocab-highlight {
+    background: #fff176 !important;
+}
+
 
 
 
@@ -81,18 +88,20 @@
 
 /* Activate Button (shows on load) */
 .ai-activate {
-  padding: 8px 16px;
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  padding: 15px 30px;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   color: white;
   border: none;
-  border-radius: 18px;
+  border-radius: 25px;
   font-weight: bold;
-  font-size: 13px;
+  font-size: 16px;
   cursor: pointer;
   box-shadow: 0 4px 20px rgba(102, 126, 234, 0.5);
+  z-index: 999;
   transition: all 0.3s;
-  height: 34px;
-  box-sizing: border-box;
 }
 .ai-activate:hover {
   transform: translateY(-2px);
@@ -108,21 +117,22 @@
 
 /* Toggle Button (hidden until AI loads) */
 .ai-toggle {
-  padding: 8px 16px;
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  padding: 12px 20px;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   color: white;
   border: none;
-  border-radius: 18px;
+  border-radius: 25px;
   font-weight: bold;
-  font-size: 13px;
   cursor: pointer;
   box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+  z-index: 999;
   display: none;
   transition: transform 0.2s;
-  height: 34px;
-  box-sizing: border-box;
 }
-.ai-toggle.active { display: inline-flex; align-items: center; }
+.ai-toggle.active { display: block; }
 .ai-toggle:hover { transform: scale(1.05); }
 
 /* AI Panel (sidebar) */
@@ -315,14 +325,9 @@
     
 *{box-sizing:border-box;}
 body{margin:0;font-family:sans-serif;background:#f1f3f4;color:#202124;overflow:auto;}
-header{height:56px;background:#fff;border-bottom:1px solid #dadce0;display:flex;flex-wrap:nowrap;align-items:center;gap:8px;padding:0 14px;position:sticky;top:0;z-index:1000;overflow-x:auto;overflow-y:hidden;}
+header{height:56px;background:#fff;border-bottom:1px solid #dadce0;display:flex;align-items:center;gap:10px;padding:0 14px;position:sticky;top:0;z-index:1000;}
 button{border:none;background:#1a73e8;color:white;padding:8px 14px;border-radius:4px;font-size:13px;font-weight:500;cursor:pointer;transition:0.15s;}
 button:hover{background:#1765cc;}
-/* Keep every toolbar button the same height/shape so the row reads as
-   symmetrical, regardless of which button sets its own background color.
-   Text wraps onto multiple lines so the button stays narrow instead of
-   stretching out sideways. */
-header button{height:44px;width:82px;box-sizing:border-box;display:inline-flex;align-items:center;justify-content:center;text-align:center;gap:0;white-space:normal;word-break:break-word;line-height:1.15;font-size:11px;padding:4px 6px;overflow:hidden;flex-shrink:0;}
 #toolbar{display:none;background:#fff;border-bottom:1px solid #dadce0;padding:10px 14px;gap:16px;flex-wrap:wrap;align-items:center;}
 #uploadBox{display:none;background:#fff;border-bottom:1px solid #dadce0;padding:14px;}
 label{font-size:13px;color:#5f6368;display:flex;align-items:center;gap:6px;}
@@ -557,7 +562,7 @@ color: #141414;
 <button onclick="startReading()">Start Reading</button>
 <button onclick="stopReading()">Stop</button>
 <button id="openFinder">Frequency Finder</button>
-<button id="openTabler" class="nav-btn">Tabler</button>
+<button onclick="toggleTableizer()">Tableizer</button>
   <button onclick="window.location.href='audio-converter.html'">Audio Converter</button> 
 
   
@@ -609,17 +614,19 @@ Press Ctrl+Enter to run"
 </div>
 
 
-<button id="recordBtn" style="background:#28a745;">Macro Audio Record</button>
-<button id="stopRecordBtn" style="background:#28a745; display:none;">Stop Macro Recording</button>
-<div id="recordingTimer" style="display:none; padding:8px 14px; background:#222; color:#28a745; border-radius:4px; font-weight:bold; font-size:13px; font-family:monospace; height:34px; box-sizing:border-box; align-items:center;">
+<div style="display:flex; gap:10px; align-items:center; margin:10px 0;">
+<button id="recordBtn" style="background:#28a745; padding:10px 16px; border:none; color:white; border-radius:8px; cursor:pointer; font-weight:bold;">Macro Audio Record</button>
+<button id="stopRecordBtn" style="background:#28a745; padding:10px 16px; border:none; color:white; border-radius:8px; cursor:pointer; font-weight:bold; display:none;">Stop Macro Recording</button>
+<div id="recordingTimer" style="display:none; padding:8px 14px; background:#222; color:#28a745; border-radius:8px; font-weight:bold; font-size:16px; font-family:monospace;">
 00:00
 </div>
+</div>
 
-<div id="recordingStatus" style="display:none; padding:8px 14px; background:#f39c12; border-radius:4px; color:white; font-weight:bold; font-size:13px; height:34px; box-sizing:border-box; align-items:center;">
+<div id="recordingStatus" style="display:none; padding:10px; background:#f39c12; border-radius:8px; color:white; margin:10px 0; font-weight:bold;">
 Recording in progress...
 </div>
 
-<button id="resetHeatmapBtn" onclick="resetHeatmap()" style="background:#5f6368;">Reset Heatmap</button>
+<button id="resetHeatmapBtn" onclick="resetHeatmap()">Reset Heatmap</button>
 <button id="curtainDataBtn" onclick="toggleCurtainData()" style="background:#8e24aa;">See Behind-Curtain Data</button>
 
 
@@ -717,6 +724,80 @@ Generate Table (1★ 2★ 3-word)
 </button>
 
 <div id="autoVocabStatus" style="font-size:12px; color:#8f8; margin-top:8px;"></div>
+
+</div>
+
+
+<!-- ===============================
+    TABLEIZER
+    Paste in a large block of text (a chapter, a book excerpt,
+    whatever). Every sentence becomes its own row; every word AND
+    every punctuation symbol becomes its own cell within that row.
+    A blank line in the source text (a paragraph break) becomes a
+    blank row in the sheet.
+
+    Includes a second tool in the same box: Vocab Highlighter.
+    Paste in words the student already knows and hit Highlight —
+    every cell anywhere on the sheet that matches one of those
+    words exactly turns yellow, so whatever's LEFT unhighlighted
+    is what the student hasn't learned yet.
+================================ -->
+<div id="tableizerBox" style="display:none; margin-top:10px; border:1px solid #2b7cff; padding:10px; border-radius:8px; background:#111; color:#fff;">
+
+<h3>Tableizer</h3>
+<div style="font-size:12px; color:#aaa; margin-bottom:8px;">
+Paste a large block of text below. Each sentence gets placed on its own row,
+and every word and punctuation symbol (commas, periods, colons, parentheses,
+etc.) gets its own cell. A blank line in your text (like the gap between
+paragraphs in a book) becomes a blank row in the sheet, to keep things clean.
+</div>
+
+<textarea
+id="tableizerText"
+placeholder="Paste your text here…"
+style="width:100%; height:180px; font-family:monospace; background:#141414; color:#e0e0e0; border:1px solid #333;"
+></textarea>
+
+<br><br>
+
+<label><strong>Start Cell</strong> (e.g. A1)</label><br>
+<input id="tableizerStart" type="text" placeholder="A1" style="padding:8px; font-size:15px; width:130px;">
+
+<br><br>
+
+<button onclick="tableizeText()" style="background:#2b7cff; padding:12px 28px; font-size:16px;">
+Tableize
+</button>
+
+<div id="tableizerStatus" style="font-size:12px; color:#8f8; margin-top:8px;"></div>
+
+<hr style="border-color:#333; margin:16px 0;">
+
+<h3>Vocab Highlighter</h3>
+<div style="font-size:12px; color:#aaa; margin-bottom:8px;">
+Paste (or type) vocabulary the student already knows — one word per line,
+or separated by commas. Hit Highlight and every cell anywhere on the sheet
+that matches one of those words exactly turns yellow. Whatever's left
+un-highlighted is what the student hasn't learned yet, so they can focus
+their attention there instead of re-reading words they already know.
+</div>
+
+<textarea
+id="vocabHighlightText"
+placeholder="e.g. the, and, house, water, run…"
+style="width:100%; height:100px; font-family:monospace; background:#141414; color:#e0e0e0; border:1px solid #333;"
+></textarea>
+
+<br><br>
+
+<button onclick="highlightVocab()" style="background:#f9a825; color:#111; padding:12px 28px; font-size:16px;">
+Highlight
+</button>
+<button onclick="clearVocabHighlights()">
+Clear Highlights
+</button>
+
+<div id="vocabHighlightStatus" style="font-size:12px; color:#8f8; margin-top:8px;"></div>
 
 </div>
 
@@ -1104,7 +1185,18 @@ window.toggleAutoVocab = function () {
   const box = document.getElementById("autoVocabBox");
   if (!box) return;
   // Close other popup boxes so only one is open at a time
-  ["uploadBox", "extractBox", "specialExtractBox", "specialUploadBox"].forEach(function (id) {
+  ["uploadBox", "extractBox", "specialExtractBox", "specialUploadBox", "tableizerBox"].forEach(function (id) {
+    const el = document.getElementById(id);
+    if (el) el.style.display = "none";
+  });
+  box.style.display = (box.style.display === "block") ? "none" : "block";
+};
+
+window.toggleTableizer = function () {
+  const box = document.getElementById("tableizerBox");
+  if (!box) return;
+  // Close other popup boxes so only one is open at a time
+  ["uploadBox", "extractBox", "specialExtractBox", "specialUploadBox", "autoVocabBox"].forEach(function (id) {
     const el = document.getElementById(id);
     if (el) el.style.display = "none";
   });
@@ -1174,6 +1266,173 @@ window.autoBuildVocabTable = function () {
         stacked.length + " rows total), starting at " + startCellInput + ".";
     }
   }, 30);
+};
+
+// ===============================
+// 9. TABLEIZER
+// Splits pasted text into the sheet: one sentence per row, and
+// every word / punctuation symbol gets its own cell. A blank line
+// in the source text (a paragraph break) becomes a blank row.
+// ===============================
+function tokenizeSentenceForTableizer(sentence) {
+  // A "word" token is letters/numbers (allows one internal apostrophe,
+  // e.g. "don't"); every other non-space character (. , : ; ! ? ( ) " —
+  // etc.) is its own single-character token.
+  const m = sentence.match(/[\p{L}\p{N}]+(?:['’][\p{L}\p{N}]+)*|[^\s]/gu);
+  return m ? m : [];
+}
+
+function splitIntoSentencesForTableizer(paragraph) {
+  // Greedy match up to and including a run of . ! ? (plus a trailing
+  // quote/paren if present), otherwise whatever's left at the end.
+  const m = paragraph.match(/[^.!?]+[.!?]+(?:["'”’)\]]+)?|[^.!?]+$/g);
+  if (!m) return [];
+  return m.map(function (s) { return s.trim(); }).filter(function (s) { return s.length > 0; });
+}
+
+window.tableizeText = function () {
+  const statusEl = document.getElementById("tableizerStatus");
+  const raw = document.getElementById("tableizerText")?.value || "";
+
+  if (!raw.trim()) {
+    alert("Please paste some text first.");
+    return;
+  }
+
+  const startCellInput = document.getElementById("tableizerStart")
+    ?.value?.trim().toUpperCase() || "A1";
+  const match = startCellInput.match(/^([A-Z]+)(\d+)$/);
+  if (!match) {
+    alert("Invalid start cell. Use A1, B1, etc.");
+    return;
+  }
+  const startCol = match[1].charCodeAt(0) - 65;
+  const startRow = parseInt(match[2]) - 1;
+
+  if (statusEl) statusEl.textContent = "Tableizing…";
+
+  // setTimeout lets the status message paint before the (synchronous) parsing runs
+  setTimeout(function () {
+    // Paragraphs are separated by one or more fully-blank lines.
+    const paragraphs = raw.replace(/\r\n/g, "\n").split(/\n\s*\n+/);
+
+    // Build the full row plan first: each entry is either an array of
+    // tokens for a sentence row, or null for a blank paragraph-break row.
+    const rowPlan = [];
+    for (let p = 0; p < paragraphs.length; p++) {
+      const paragraphText = paragraphs[p].replace(/\n+/g, " ").trim();
+      if (!paragraphText) continue;
+
+      const sentences = splitIntoSentencesForTableizer(paragraphText);
+      for (let s = 0; s < sentences.length; s++) {
+        rowPlan.push(tokenizeSentenceForTableizer(sentences[s]));
+      }
+
+      // Blank separator row between paragraphs (not after the last one)
+      if (p < paragraphs.length - 1) {
+        rowPlan.push(null);
+      }
+    }
+
+    if (!rowPlan.length) {
+      alert("No text found to tableize.");
+      if (statusEl) statusEl.textContent = "";
+      return;
+    }
+
+    // Auto-expand the sheet (rows only — columns are fixed at 26) if needed
+    const neededRows = startRow + rowPlan.length;
+    const currentDataRows = sheetTable.rows.length - 2; // minus header + selector rows
+    if (neededRows > currentDataRows) {
+      addNewRows(neededRows - currentDataRows);
+    }
+
+    const availableCols = TOTAL_COLS - startCol;
+    let overflowSentences = 0;
+    let sentenceRowCount = 0;
+
+    for (let i = 0; i < rowPlan.length; i++) {
+      const tokens = rowPlan[i];
+      const r = startRow + i;
+      const row = sheetTable.rows[r + 2]; // +2 for header + selector row
+      if (!row) continue;
+
+      if (!tokens) continue; // blank separator row — leave every cell empty
+      sentenceRowCount++;
+
+      if (tokens.length > availableCols) overflowSentences++;
+
+      const placeCount = Math.min(tokens.length, availableCols);
+      for (let c = 0; c < placeCount; c++) {
+        const cell = row.cells[startCol + c + 1]; // +1 for row-number column
+        if (cell) cell.innerText = tokens[c];
+      }
+    }
+
+    if (statusEl) {
+      let msg = "✅ Done — " + sentenceRowCount + " sentence" +
+        (sentenceRowCount === 1 ? "" : "s") + " placed, starting at " + startCellInput + ".";
+      if (overflowSentences > 0) {
+        msg += " ⚠️ " + overflowSentences + " sentence(s) had more words/symbols than the " +
+          availableCols + " columns available from that start cell, so the extra ones were " +
+          "dropped. Start further left (e.g. column A) to fit longer sentences.";
+      }
+      statusEl.textContent = msg;
+    }
+  }, 30);
+};
+
+
+// ===============================
+// 10. VOCAB HIGHLIGHTER
+// Paste in vocabulary the student already knows; every cell anywhere
+// on the sheet whose exact text matches one of those words gets a
+// yellow highlight — whatever's left unhighlighted is what's still
+// new to them.
+// ===============================
+window.highlightVocab = function () {
+  const raw = document.getElementById("vocabHighlightText")?.value || "";
+  const statusEl = document.getElementById("vocabHighlightStatus");
+
+  const words = raw
+    .split(/[\n,]+/)
+    .map(function (w) { return w.trim().toLowerCase(); })
+    .filter(function (w) { return w.length > 0; });
+
+  // Clear any previous highlight pass first, so this is always a fresh check
+  document.querySelectorAll("#sheet td.vocab-highlight").forEach(function (cell) {
+    cell.classList.remove("vocab-highlight");
+  });
+
+  if (!words.length) {
+    if (statusEl) statusEl.textContent = "Paste some vocabulary first.";
+    return;
+  }
+
+  const vocabSet = new Set(words);
+  let matches = 0;
+
+  document.querySelectorAll("#sheet td[contenteditable='true']").forEach(function (cell) {
+    const text = cell.innerText.trim().toLowerCase();
+    if (text && vocabSet.has(text)) {
+      cell.classList.add("vocab-highlight");
+      matches++;
+    }
+  });
+
+  if (statusEl) {
+    statusEl.textContent = "✅ Highlighted " + matches + " matching cell" +
+      (matches === 1 ? "" : "s") + " across the sheet, for " + vocabSet.size +
+      " vocab word" + (vocabSet.size === 1 ? "" : "s") + ".";
+  }
+};
+
+window.clearVocabHighlights = function () {
+  document.querySelectorAll("#sheet td.vocab-highlight").forEach(function (cell) {
+    cell.classList.remove("vocab-highlight");
+  });
+  const statusEl = document.getElementById("vocabHighlightStatus");
+  if (statusEl) statusEl.textContent = "Highlights cleared.";
 };
 </script>
 
