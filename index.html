@@ -765,7 +765,36 @@ Clear Highlights
 
 <div id="vocabHighlightStatus" style="font-size:12px; color:#8f8; margin-top:8px;"></div>
 
+<hr style="border-color:#333; margin:16px 0;">
+
+<div style="font-size:12px; color:#aaa; margin-bottom:8px;">
+Once you've highlighted the words already known, harvest everything else:
+this pulls every un-highlighted word/symbol out of the sheet, row by row,
+keeping the original sentence order — highlighted (known) cells are simply
+skipped, so a sentence may come out a little broken if it had known words
+in the middle of it. Paste the result into Frequency Finder or Auto Vocab
+Builder to study just what's actually new.
 </div>
+
+<button onclick="harvestUnhighlighted()" style="background:#00897b; padding:12px 28px; font-size:16px;">
+Harvest Un-Highlighted Text
+</button>
+
+<textarea
+id="harvestedTextOutput"
+readonly
+placeholder="Harvested text will appear here…"
+style="width:100%; height:140px; font-family:monospace; background:#141414; color:#e0e0e0; border:1px solid #333; margin-top:8px; display:none;"
+></textarea>
+
+<button id="copyHarvestedBtn" onclick="copyHarvestedText()" style="display:none; margin-top:8px;">
+Copy to Clipboard
+</button>
+
+<div id="harvestStatus" style="font-size:12px; color:#8f8; margin-top:8px;"></div>
+
+</div>
+
 
 
 <!-- ===============================
@@ -1559,6 +1588,149 @@ window.clearVocabHighlights = function () {
   });
   const statusEl = document.getElementById("vocabHighlightStatus");
   if (statusEl) statusEl.textContent = "Highlights cleared.";
+};
+
+
+// ===============================
+// HARVEST UN-HIGHLIGHTED TEXT
+// Pulls every un-highlighted cell out of the sheet, row by row, in
+// its original left-to-right / top-to-bottom order, skipping any
+// cell currently marked as a known vocab word (.vocab-highlight).
+// A row that ends up with nothing left in it (either it was already
+// blank, or every word in it was highlighted/known) becomes a blank
+// line in the output, so paragraph breaks are preserved.
+// ===============================
+
+// Joins tokens back into readable text: closing punctuation (. , ! ? ; : ) ] })
+// attaches to the word before it with no space, and an opening bracket/paren
+// suppresses the space before whatever follows it. Not perfect — some
+// sentences will look a little rough where a highlighted word left a gap —
+// but it's meant for feeding into Frequency Finder / Auto Vocab, not for
+// polished reading.
+function joinHarvestedTokens(tokens) {
+  const noSpaceBefore = /^[.,!?;:)\]}]+$/;
+  const noSpaceAfterOpener = /^[([{]+$/;
+  let result = "";
+  let forceNoSpace = false;
+
+  tokens.forEach(function (tok, idx) {
+    if (idx === 0) {
+      result = tok;
+    } else if (noSpaceBefore.test(tok) || forceNoSpace) {
+      result += tok;
+    } else {
+      result += " " + tok;
+    }
+    forceNoSpace = noSpaceAfterOpener.test(tok);
+  });
+
+  return result;
+}
+
+window.harvestUnhighlighted = function () {
+  const statusEl = document.getElementById("harvestStatus");
+  const outputEl = document.getElementById("harvestedTextOutput");
+  const copyBtn = document.getElementById("copyHarvestedBtn");
+
+  const rows = sheetTable.rows; // rows[0]=letters, rows[1]=language selectors, rows[2+]=data
+  const outputLines = [];
+  let omittedCount = 0;
+  let keptCount = 0;
+
+  for (let r = 2; r < rows.length; r++) {
+    const row = rows[r];
+    const tokens = [];
+
+    for (let c = 1; c < row.cells.length; c++) {
+      const cell = row.cells[c];
+      if (!cell) continue;
+
+      const text = cell.innerText.trim();
+      if (!text) continue;
+
+      if (cell.classList.contains("vocab-highlight")) {
+        omittedCount++;
+        continue; // known word — leave it out of the harvest
+      }
+
+      tokens.push(text);
+      keptCount++;
+    }
+
+    outputLines.push(tokens.length ? joinHarvestedTokens(tokens) : "");
+  }
+
+  // Collapse runs of blank lines down to a single blank line (paragraph
+  // gap), and trim leading/trailing blank lines, for a cleaner result.
+  const collapsed = [];
+  let blankRun = 0;
+  outputLines.forEach(function (line) {
+    if (line === "") {
+      blankRun++;
+      if (blankRun <= 1) collapsed.push("");
+    } else {
+      blankRun = 0;
+      collapsed.push(line);
+    }
+  });
+  while (collapsed.length && collapsed[0] === "") collapsed.shift();
+  while (collapsed.length && collapsed[collapsed.length - 1] === "") collapsed.pop();
+
+  const resultText = collapsed.join("\n");
+
+  if (!resultText.trim()) {
+    if (outputEl) { outputEl.style.display = "none"; outputEl.value = ""; }
+    if (copyBtn) copyBtn.style.display = "none";
+    if (statusEl) {
+      statusEl.textContent = omittedCount > 0
+        ? "Nothing left to harvest — every non-empty cell is highlighted as known."
+        : "Nothing to harvest — the sheet looks empty.";
+    }
+    return;
+  }
+
+  if (outputEl) {
+    outputEl.style.display = "block";
+    outputEl.value = resultText;
+  }
+  if (copyBtn) copyBtn.style.display = "inline-flex";
+
+  if (statusEl) {
+    statusEl.textContent = "✅ Harvested " + keptCount + " word" + (keptCount === 1 ? "" : "s") +
+      " (" + omittedCount + " highlighted word" + (omittedCount === 1 ? "" : "s") + " skipped). " +
+      "Copy it below into Frequency Finder or Auto Vocab Builder.";
+  }
+};
+
+window.copyHarvestedText = function () {
+  const outputEl = document.getElementById("harvestedTextOutput");
+  const statusEl = document.getElementById("harvestStatus");
+  if (!outputEl || !outputEl.value) return;
+
+  outputEl.select();
+  outputEl.setSelectionRange(0, outputEl.value.length);
+
+  const finish = function (ok) {
+    if (statusEl) {
+      statusEl.textContent = ok
+        ? "✅ Copied to clipboard."
+        : "Couldn't copy automatically — the text is selected, so you can press Ctrl/Cmd+C.";
+    }
+  };
+
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(outputEl.value).then(function () {
+      finish(true);
+    }).catch(function () {
+      finish(false);
+    });
+  } else {
+    try {
+      finish(document.execCommand("copy"));
+    } catch (e) {
+      finish(false);
+    }
+  }
 };
 </script>
 
