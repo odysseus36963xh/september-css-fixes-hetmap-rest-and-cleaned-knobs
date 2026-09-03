@@ -1364,12 +1364,61 @@ function tokenizeSentenceForTableizer(sentence) {
   return m ? m : [];
 }
 
+// Common abbreviations that end in a period but do NOT end a sentence.
+const TABLEIZER_ABBREVIATIONS = [
+  "Mr", "Mrs", "Ms", "Dr", "Prof", "Sr", "Jr", "St", "Mt", "vs", "etc",
+  "approx", "dept", "univ", "no", "vol", "fig", "inc", "ltd", "corp", "co",
+  "cf", "al", "ca", "pp", "ed", "eds", "trans", "rev", "gen", "col", "lt",
+  "capt", "sgt", "maj", "adm", "gov", "sen", "rep", "pres", "supt", "hon"
+];
+
+// Temporarily swaps out periods that DON'T actually end a sentence (found in
+// abbreviations, decimals, initials, etc.) for a placeholder character, so
+// the sentence-splitter below doesn't mistake them for sentence boundaries.
+// Without this, "Mr. Smith went home." or "It was 3.14 seconds fast!" would
+// get fractured into extra broken-off rows instead of staying one sentence.
+function protectAbbreviationPeriods(text) {
+  let out = text;
+
+  // Spelled-out multi-part abbreviations: e.g. i.e. a.m. p.m. U.S. U.K.
+  out = out.replace(/\b(e\.g|i\.e|a\.m|p\.m|U\.S|U\.K)\.(?=\s|$)/gi, function (m) {
+    return m.replace(/\./g, "\u0001");
+  });
+
+  // Chained abbreviations with no spaces: Ph.D., U.S.A., M.D., B.A.
+  out = out.replace(/\.(?=[A-Z]\.)/g, "\u0001");
+
+  // Common titles/abbreviations followed by a period
+  const abbrevPattern = new RegExp("\\b(" + TABLEIZER_ABBREVIATIONS.join("|") + ")\\.", "g");
+  out = out.replace(abbrevPattern, function (m, word) { return word + "\u0001"; });
+
+  // Decimal numbers (3.14) and money ($5.99)
+  out = out.replace(/(\d)\.(?=\d)/g, "$1\u0001");
+
+  // Single-capital initials like "J. K. Rowling"
+  out = out.replace(/\b([A-Z])\.(?=\s+[A-Z](?:\.|[a-z]))/g, "$1\u0001");
+
+  // General safety net: an isolated period (not part of a .. or ... run)
+  // probably isn't a sentence end if the next real word starts lowercase —
+  // real sentences almost always start with a capital letter.
+  out = out.replace(/(?<!\.)\.(?!\.)(?=[,;:]?\s+[a-z])/g, "\u0001");
+
+  return out;
+}
+
+function restoreProtectedPeriods(text) {
+  return text.replace(/\u0001/g, ".");
+}
+
 function splitIntoSentencesForTableizer(paragraph) {
   // Greedy match up to and including a run of . ! ? (plus a trailing
   // quote/paren if present), otherwise whatever's left at the end.
-  const m = paragraph.match(/[^.!?]+[.!?]+(?:["'”’)\]]+)?|[^.!?]+$/g);
+  const protectedText = protectAbbreviationPeriods(paragraph);
+  const m = protectedText.match(/[^.!?]+[.!?]+(?:["'”’)\]]+)?|[^.!?]+$/g);
   if (!m) return [];
-  return m.map(function (s) { return s.trim(); }).filter(function (s) { return s.length > 0; });
+  return m
+    .map(function (s) { return restoreProtectedPeriods(s.trim()); })
+    .filter(function (s) { return s.length > 0; });
 }
 
 window.tableizeText = function () {
