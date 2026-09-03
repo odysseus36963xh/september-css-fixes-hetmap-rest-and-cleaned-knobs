@@ -931,13 +931,51 @@ whichever cell you choose. The block keeps its original shape relative to that s
 // ===============================
 // 1. CONFIGURATION
 // ===============================
-const TOTAL_COLS = 26;
+let TOTAL_COLS = 26;
 let totalRows = 26;
 const sheetTable = document.getElementById("sheet");
 
-const staticCells = Array(TOTAL_COLS)
+let staticCells = Array(TOTAL_COLS)
   .fill('<td contenteditable="true"></td>')
   .join("");
+
+// ===============================
+// 1b. COLUMN LABELING (lets the sheet expand sideways forever)
+// Columns 0-25   -> A .. Z
+// Columns 26-51  -> A*1 .. Z*1
+// Columns 52-77  -> A*2 .. Z*2
+// ...and so on. A full cell reference for an extended column needs
+// a dash before the row number to stay unambiguous, e.g. "A*1-5"
+// means column A*1, row 5. Plain "A5" still works exactly as before.
+// ===============================
+function colIndexToLabel(col) {
+  const group = Math.floor(col / 26);
+  const letter = String.fromCharCode(65 + (col % 26));
+  return group === 0 ? letter : (letter + "*" + group);
+}
+
+function cellRefFromColRow(col, row1) {
+  const group = Math.floor(col / 26);
+  const label = colIndexToLabel(col);
+  return group === 0 ? (label + row1) : (label + "-" + row1);
+}
+
+// Parses "A5", "B12", "A*1-5", "Z*3-40", etc.
+// Returns { col, row } with a 1-based row (A1 = row 1), or null if invalid.
+function parseColRowRef(ref) {
+  if (!ref) return null;
+  const m = ref.trim().toUpperCase().match(/^([A-Z])(?:\*(\d+)-)?(\d+)$/);
+  if (!m) return null;
+  const letter = m[1];
+  const group = m[2] ? parseInt(m[2], 10) : 0;
+  const row1 = parseInt(m[3], 10);
+  const col = group * 26 + (letter.charCodeAt(0) - 65);
+  return { col: col, row: row1 };
+}
+
+window.colIndexToLabel = colIndexToLabel;
+window.cellRefFromColRow = cellRefFromColRow;
+window.parseColRowRef = parseColRowRef;
 
 // ===============================
 // 2. BUILD TABLE
@@ -945,7 +983,7 @@ const staticCells = Array(TOTAL_COLS)
 // Header row (column letters)
 let headerHtml = "<tr><th></th>";
 for (let c = 0; c < TOTAL_COLS; c++) {
-  headerHtml += `<th>${String.fromCharCode(65 + c)}</th>`;
+  headerHtml += `<th>${colIndexToLabel(c)}</th>`;
 }
 headerHtml += "</tr>";
 
@@ -970,6 +1008,50 @@ for (let r = 1; r <= totalRows; r++) {
 }
 
 sheetTable.innerHTML = headerHtml + selRow + bodyHtml;
+
+
+// ===============================
+// 2b. LATERAL EXPANSION
+// Adds more columns on the right, following the A..Z, A*1..Z*1,
+// A*2..Z*2... scheme, so the sheet can grow sideways indefinitely.
+// Extends the header row, the language-selector row, and every
+// existing data row, then keeps staticCells in sync so any row
+// created afterward (via addNewRows) already has the new width.
+// ===============================
+function addNewCols(count) {
+  if (count <= 0) return;
+  const startIdx = TOTAL_COLS;
+  TOTAL_COLS += count;
+
+  const rows = sheetTable.rows; // rows[0]=letters, rows[1]=language selectors, rows[2+]=data
+
+  let headerAdd = "";
+  let selectorAdd = "";
+  for (let c = startIdx; c < TOTAL_COLS; c++) {
+    headerAdd += `<th>${colIndexToLabel(c)}</th>`;
+    selectorAdd += `<th><select class='col-select'>` +
+      `<option>Off</option><option>EN</option><option>IT</option>` +
+      `<option>ES</option><option>FR</option><option>DE</option></select></th>`;
+  }
+  rows[0].insertAdjacentHTML("beforeend", headerAdd);
+  rows[1].insertAdjacentHTML("beforeend", selectorAdd);
+
+  for (let r = 2; r < rows.length; r++) {
+    const rowIndex = r - 2; // matches the "row:col" cellId scheme used elsewhere
+    let cellsAdd = "";
+    for (let c = startIdx; c < TOTAL_COLS; c++) {
+      cellsAdd += `<td contenteditable="true" data-cell-id="${rowIndex}:${c}" data-listen-count="0" class="practice-cell"></td>`;
+    }
+    rows[r].insertAdjacentHTML("beforeend", cellsAdd);
+  }
+
+  // Keep the "brand new row" template in sync so addNewRows() produces
+  // full-width rows from now on.
+  staticCells = Array(TOTAL_COLS)
+    .fill('<td contenteditable="true"></td>')
+    .join("");
+}
+window.addNewCols = addNewCols;
 
 
 // ===============================
@@ -1070,17 +1152,17 @@ window.uploadColumn = function () {
     return;
   }
 
-  // Parse start cell (e.g. "A1", "B5", "C12")
+  // Parse start cell (e.g. "A1", "B5", "C12", or "A*1-5" for extended columns)
   const startCellInput = document.getElementById("startCellUpload")
     ?.value?.trim().toUpperCase() || "A1";
-  const match = startCellInput.match(/^([A-Z]+)(\d+)$/);
-  if (!match) {
-    alert("Invalid cell format. Use A1, B5, C12, etc.");
+  const parsedStart = parseColRowRef(startCellInput);
+  if (!parsedStart) {
+    alert("Invalid cell format. Use A1, B5, C12, etc. (or A*1-5 for extended columns).");
     return;
   }
 
-  let startCol = match[1].charCodeAt(0) - 65;
-  let startRow = parseInt(match[2]) - 1;
+  let startCol = parsedStart.col;
+  let startRow = parsedStart.row - 1;
 
   const direction = document.getElementById("uploadDirection")?.value || "down";
 
@@ -1217,13 +1299,13 @@ window.autoBuildVocabTable = function () {
 
   const startCellInput = document.getElementById("autoVocabStart")
     ?.value?.trim().toUpperCase() || "A1";
-  const match = startCellInput.match(/^([A-Z]+)(\d+)$/);
-  if (!match) {
-    alert("Invalid start cell. Use A1, B1, etc.");
+  const parsedStart = parseColRowRef(startCellInput);
+  if (!parsedStart) {
+    alert("Invalid start cell. Use A1, B1, etc. (or A*1-5 for extended columns).");
     return;
   }
-  const startCol = match[1].charCodeAt(0) - 65;
-  const startRow = parseInt(match[2]) - 1;
+  const startCol = parsedStart.col;
+  const startRow = parsedStart.row - 1;
 
   if (statusEl) statusEl.textContent = "Crunching frequencies…";
 
@@ -1301,13 +1383,13 @@ window.tableizeText = function () {
 
   const startCellInput = document.getElementById("tableizerStart")
     ?.value?.trim().toUpperCase() || "A1";
-  const match = startCellInput.match(/^([A-Z]+)(\d+)$/);
-  if (!match) {
-    alert("Invalid start cell. Use A1, B1, etc.");
+  const parsedStart = parseColRowRef(startCellInput);
+  if (!parsedStart) {
+    alert("Invalid start cell. Use A1, B1, etc. (or A*1-5 for extended columns).");
     return;
   }
-  const startCol = match[1].charCodeAt(0) - 65;
-  const startRow = parseInt(match[2]) - 1;
+  const startCol = parsedStart.col;
+  const startRow = parsedStart.row - 1;
 
   if (statusEl) statusEl.textContent = "Tableizing…";
 
@@ -1340,15 +1422,40 @@ window.tableizeText = function () {
       return;
     }
 
-    // Auto-expand the sheet (rows only — columns are fixed at 26) if needed
+    // Auto-expand the sheet: rows for the sentence count, and now columns
+    // too — if the longest sentence needs more room than the sheet
+    // currently has from the start column, we grow sideways (A..Z,
+    // A*1..Z*1, A*2..Z*2, ...) instead of cutting words off.
     const neededRows = startRow + rowPlan.length;
     const currentDataRows = sheetTable.rows.length - 2; // minus header + selector rows
     if (neededRows > currentDataRows) {
       addNewRows(neededRows - currentDataRows);
     }
 
-    const availableCols = TOTAL_COLS - startCol;
-    let overflowSentences = 0;
+    let maxTokens = 0;
+    for (let i = 0; i < rowPlan.length; i++) {
+      if (rowPlan[i] && rowPlan[i].length > maxTokens) maxTokens = rowPlan[i].length;
+    }
+    const neededCols = startCol + maxTokens;
+    let colsAdded = 0;
+    if (neededCols > TOTAL_COLS) {
+      colsAdded = neededCols - TOTAL_COLS;
+      // Safety check before creating a huge number of extra columns from
+      // what might be a parsing fluke (e.g. no punctuation/line breaks
+      // in the pasted text at all).
+      if (colsAdded > 200) {
+        const proceed = confirm(
+          "The longest sentence needs " + maxTokens + " cells, which means adding " +
+          colsAdded + " new columns to the sheet. Continue?"
+        );
+        if (!proceed) {
+          if (statusEl) statusEl.textContent = "Cancelled — no changes made.";
+          return;
+        }
+      }
+      addNewCols(colsAdded);
+    }
+
     let sentenceRowCount = 0;
 
     for (let i = 0; i < rowPlan.length; i++) {
@@ -1360,10 +1467,7 @@ window.tableizeText = function () {
       if (!tokens) continue; // blank separator row — leave every cell empty
       sentenceRowCount++;
 
-      if (tokens.length > availableCols) overflowSentences++;
-
-      const placeCount = Math.min(tokens.length, availableCols);
-      for (let c = 0; c < placeCount; c++) {
+      for (let c = 0; c < tokens.length; c++) {
         const cell = row.cells[startCol + c + 1]; // +1 for row-number column
         if (cell) cell.innerText = tokens[c];
       }
@@ -1372,10 +1476,10 @@ window.tableizeText = function () {
     if (statusEl) {
       let msg = "✅ Done — " + sentenceRowCount + " sentence" +
         (sentenceRowCount === 1 ? "" : "s") + " placed, starting at " + startCellInput + ".";
-      if (overflowSentences > 0) {
-        msg += " ⚠️ " + overflowSentences + " sentence(s) had more words/symbols than the " +
-          availableCols + " columns available from that start cell, so the extra ones were " +
-          "dropped. Start further left (e.g. column A) to fit longer sentences.";
+      if (colsAdded > 0) {
+        msg += " Sheet expanded by " + colsAdded + " column" + (colsAdded === 1 ? "" : "s") +
+          " (now " + TOTAL_COLS + " wide, up to " + colIndexToLabel(TOTAL_COLS - 1) +
+          ") so nothing got cut off.";
       }
       statusEl.textContent = msg;
     }

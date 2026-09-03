@@ -617,16 +617,28 @@ function saveRecording() {
 
 // ===============================
 // UTIL: COLUMN + CELL PARSING
+// Delegates to the extended-column parser (parseColRowRef, defined in
+// index.html alongside the sheet's column model) so every tool that
+// calls parseCell()/colToIndex() automatically understands the sheet's
+// lateral-expansion labels (A*1, A*2, ...) as well as plain A-Z.
 // ===============================
 function colToIndex(col) {
-  return col.toUpperCase().charCodeAt(0) - 65;
+  if (typeof window.parseColRowRef === "function") {
+    const parsed = window.parseColRowRef(col + "1"); // dummy row, we only need .col
+    if (parsed) return parsed.col;
+  }
+  return col.toUpperCase().charCodeAt(0) - 65; // fallback: plain letter only
 }
 
 function parseCell(ref) {
   if (!ref || ref.trim() === "") return null;
+  if (typeof window.parseColRowRef === "function") {
+    const parsed = window.parseColRowRef(ref);
+    if (parsed) return { col: parsed.col, row: parsed.row }; // 1-based row, matches UI (A1 = row 1)
+  }
+  // Fallback: original plain-letter parsing
   const match = ref.match(/^([A-Z]+)(\d+)$/i);
   if (!match) return null;
-  // Returns 1-based row index to match UI (A1 = row 1)
   const col = colToIndex(match[1]);
   const row = parseInt(match[2]);
   return { col, row };
@@ -2080,13 +2092,13 @@ window.uploadColumn = function () {
   let startRow = 0;   // Default = Row 1
 
   if (startCellInput) {
-    const match = startCellInput.match(/^([A-Z]+)(\d+)$/);
-    if (!match) {
-      alert("Invalid cell format. Please use something like A1, B5, or C12");
+    const parsed = parseCell(startCellInput);
+    if (!parsed) {
+      alert("Invalid cell format. Please use something like A1, B5, C12, or A*1-5 for extended columns.");
       return;
     }
-    startCol = match[1].charCodeAt(0) - 65;
-    startRow = parseInt(match[2]) - 1;
+    startCol = parsed.col;
+    startRow = parsed.row - 1;
   }
 
   const lines = rawText.split(/\r?\n/).map(x => x.trim()).filter(x => x !== "");
@@ -2099,6 +2111,15 @@ window.uploadColumn = function () {
   const currentRows = sheetTable.rows.length - 2;
   if (neededRows > currentRows) {
     addNewRows(neededRows - currentRows);
+  }
+
+  // "Across" uploads can run past the current right edge — grow the
+  // sheet sideways (A..Z, A*1..Z*1, ...) instead of silently dropping items.
+  if (direction !== "down") {
+    const neededCols = startCol + lines.length;
+    if (typeof TOTAL_COLS !== "undefined" && neededCols > TOTAL_COLS && typeof addNewCols === "function") {
+      addNewCols(neededCols - TOTAL_COLS);
+    }
   }
 
   // Fill the cells
@@ -2816,6 +2837,11 @@ function toggleConversion(){
 function parseCellZeroBased(cellRef){
 
     if (!cellRef) return null;
+
+    if (typeof window.parseColRowRef === "function") {
+        const parsed = window.parseColRowRef(cellRef);
+        if (parsed) return { col: parsed.col, row: parsed.row - 1 };
+    }
 
     const match =
         cellRef.match(/^([A-Z]+)(\d+)$/i);
