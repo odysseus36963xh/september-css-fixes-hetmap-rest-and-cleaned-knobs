@@ -464,18 +464,13 @@ white-space: pre-wrap;
 
 
 
-/* 1. Bulletproof Yellow Highlight for Light Columns */
-td.reading, 
+/* Reading highlight — every cell gets the same look now that data
+   cells are always white (the header row above keeps its own
+   separate black/white alternating style, untouched). */
+td.reading,
 tr.reading td {
-background-color: #34ce57 !important; 
+background-color: #34ce57 !important;
 color: #141414 !important; /* Keeps text dark and readable */
-}
-
-/* 2. Bulletproof Dark-Mode Highlight for Dark Columns */
-td:nth-child(even).reading, 
-tr.reading td:nth-child(even) {
-background-color: #1a5ec2 !important; /* The deep blue from your Frequency Finder */
-color: #ffffff !important; 
 }
 
 ::-webkit-scrollbar{width:10px;height:10px;}
@@ -484,48 +479,19 @@ color: #ffffff !important;
 ::-webkit-scrollbar-thumb:hover{background:#a8a8a8;}
 
 
-/* 1. Make every other column match the Frequency Finder 'extract box' */
-td:nth-child(even) {
-background-color: #141414; /* The textarea background color */
-color: #e0e0e0;            /* Soft white text */
-}
-
-/* Make the header of the dark columns match the Frequency Finder table headers */
+/* Header row (column letters) keeps its black/white alternating look. */
 th:nth-child(even) {
 background-color: #1e1e1e; /* Slightly lighter dark gray for headers */
-color: #ffffff;            /* The nice blue you used for headers, or change to #e0e0e0 */
+color: #ffffff;
 }
 
-/* 2. Match the exact hover state used in your Frequency Finder table */
-td:nth-child(even):hover {
-background-color: #1a2233; /* The dark blue hover tint */
+/* Keep the .col-select language dropdown readable against that dark header */
+th:nth-child(even) .col-select {
 color: #e0e0e0;
 }
-
-/* 3. Ensure the .col-select dropdowns in the dark columns are readable */
-th:nth-child(even) .col-select,
-td:nth-child(even) .col-select {
-color: #e0e0e0;
-}
-
-/* Fix option backgrounds in dropdowns so they aren't transparent over dark columns */
-th:nth-child(even) .col-select option,
-td:nth-child(even) .col-select option {
+th:nth-child(even) .col-select option {
 background-color: #141414;
 color: #e0e0e0;
-}
-
-/* Once a cell has actually been played, the heatmap (a JS-set inline
-   background-color) takes over from this column's original dark
-   resting background — but the original light text color above was
-   only ever meant to be readable against THAT dark background. Against
-   the lighter heatmap colors it goes unreadable, so any cell that has
-   picked up heatmap tracking switches its text to dark instead.
-   Untouched cells in these columns keep their original look, and the
-   "currently reading" highlight above is unaffected since it already
-   uses !important. */
-td:nth-child(even).practice-cell {
-color: #141414;
 }
 
 </style>
@@ -942,32 +908,30 @@ let staticCells = Array(TOTAL_COLS)
 // ===============================
 // 1b. COLUMN LABELING (lets the sheet expand sideways forever)
 // Columns 0-25   -> A .. Z
-// Columns 26-51  -> A*1 .. Z*1
-// Columns 52-77  -> A*2 .. Z*2
-// ...and so on. A full cell reference for an extended column needs
-// a dash before the row number to stay unambiguous, e.g. "A*1-5"
-// means column A*1, row 5. Plain "A5" still works exactly as before.
+// Columns 26-51  -> 1A .. 1Z
+// Columns 52-77  -> 2A .. 2Z
+// ...and so on. The leading number and the row number never collide
+// because a letter always sits between them, so cell refs stay simple:
+// "A5" (column A, row 5) or "1A5" (column 1A, row 5) — no dash needed.
 // ===============================
 function colIndexToLabel(col) {
   const group = Math.floor(col / 26);
   const letter = String.fromCharCode(65 + (col % 26));
-  return group === 0 ? letter : (letter + "*" + group);
+  return group === 0 ? letter : (group + letter);
 }
 
 function cellRefFromColRow(col, row1) {
-  const group = Math.floor(col / 26);
-  const label = colIndexToLabel(col);
-  return group === 0 ? (label + row1) : (label + "-" + row1);
+  return colIndexToLabel(col) + row1;
 }
 
-// Parses "A5", "B12", "A*1-5", "Z*3-40", etc.
+// Parses "A5", "B12", "1A5", "2Z40", etc.
 // Returns { col, row } with a 1-based row (A1 = row 1), or null if invalid.
 function parseColRowRef(ref) {
   if (!ref) return null;
-  const m = ref.trim().toUpperCase().match(/^([A-Z])(?:\*(\d+)-)?(\d+)$/);
+  const m = ref.trim().toUpperCase().match(/^(\d*)([A-Z])(\d+)$/);
   if (!m) return null;
-  const letter = m[1];
-  const group = m[2] ? parseInt(m[2], 10) : 0;
+  const group = m[1] ? parseInt(m[1], 10) : 0;
+  const letter = m[2];
   const row1 = parseInt(m[3], 10);
   const col = group * 26 + (letter.charCodeAt(0) - 65);
   return { col: col, row: row1 };
@@ -1012,7 +976,7 @@ sheetTable.innerHTML = headerHtml + selRow + bodyHtml;
 
 // ===============================
 // 2b. LATERAL EXPANSION
-// Adds more columns on the right, following the A..Z, A*1..Z*1,
+// Adds more columns on the right, following the A..Z, 1A..1Z,
 // A*2..Z*2... scheme, so the sheet can grow sideways indefinitely.
 // Extends the header row, the language-selector row, and every
 // existing data row, then keeps staticCells in sync so any row
@@ -1050,6 +1014,15 @@ function addNewCols(count) {
   staticCells = Array(TOTAL_COLS)
     .fill('<td contenteditable="true"></td>')
     .join("");
+
+  // The new columns' language selectors are created with just the
+  // Off/EN/IT/ES/FR/DE placeholder list — updateLanguageDropdowns()
+  // (in script.js) is what actually fills every selector in with the
+  // full list of languages the browser's TTS voices support, so run
+  // it again now that new selectors exist.
+  if (typeof updateLanguageDropdowns === "function") {
+    updateLanguageDropdowns();
+  }
 }
 window.addNewCols = addNewCols;
 
@@ -1152,12 +1125,12 @@ window.uploadColumn = function () {
     return;
   }
 
-  // Parse start cell (e.g. "A1", "B5", "C12", or "A*1-5" for extended columns)
+  // Parse start cell (e.g. "A1", "B5", "C12", or "1A5" for extended columns)
   const startCellInput = document.getElementById("startCellUpload")
     ?.value?.trim().toUpperCase() || "A1";
   const parsedStart = parseColRowRef(startCellInput);
   if (!parsedStart) {
-    alert("Invalid cell format. Use A1, B5, C12, etc. (or A*1-5 for extended columns).");
+    alert("Invalid cell format. Use A1, B5, C12, etc. (or 1A5 for extended columns).");
     return;
   }
 
@@ -1301,7 +1274,7 @@ window.autoBuildVocabTable = function () {
     ?.value?.trim().toUpperCase() || "A1";
   const parsedStart = parseColRowRef(startCellInput);
   if (!parsedStart) {
-    alert("Invalid start cell. Use A1, B1, etc. (or A*1-5 for extended columns).");
+    alert("Invalid start cell. Use A1, B1, etc. (or 1A5 for extended columns).");
     return;
   }
   const startCol = parsedStart.col;
@@ -1434,7 +1407,7 @@ window.tableizeText = function () {
     ?.value?.trim().toUpperCase() || "A1";
   const parsedStart = parseColRowRef(startCellInput);
   if (!parsedStart) {
-    alert("Invalid start cell. Use A1, B1, etc. (or A*1-5 for extended columns).");
+    alert("Invalid start cell. Use A1, B1, etc. (or 1A5 for extended columns).");
     return;
   }
   const startCol = parsedStart.col;
@@ -1474,7 +1447,7 @@ window.tableizeText = function () {
     // Auto-expand the sheet: rows for the sentence count, and now columns
     // too — if the longest sentence needs more room than the sheet
     // currently has from the start column, we grow sideways (A..Z,
-    // A*1..Z*1, A*2..Z*2, ...) instead of cutting words off.
+    // 1A..1Z, 2A..2Z, ...) instead of cutting words off.
     const neededRows = startRow + rowPlan.length;
     const currentDataRows = sheetTable.rows.length - 2; // minus header + selector rows
     if (neededRows > currentDataRows) {

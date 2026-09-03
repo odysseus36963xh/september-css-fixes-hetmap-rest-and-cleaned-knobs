@@ -2094,7 +2094,7 @@ window.uploadColumn = function () {
   if (startCellInput) {
     const parsed = parseCell(startCellInput);
     if (!parsed) {
-      alert("Invalid cell format. Please use something like A1, B5, C12, or A*1-5 for extended columns.");
+      alert("Invalid cell format. Please use something like A1, B5, C12, or 1A5 for extended columns.");
       return;
     }
     startCol = parsed.col;
