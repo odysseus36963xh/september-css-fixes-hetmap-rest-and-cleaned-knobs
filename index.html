@@ -515,7 +515,11 @@ color: #e0e0e0;
 <button onclick="toggleReader()">Reader Options</button>
 
 <!-- Hidden file input -->
-<input type="file" id="cellFileInput" accept="image/jpeg, audio/mp3, audio/mpeg, video/webm" style="display:none">
+<!-- cellFileInput intentionally removed: script.js injects the live version
+     of this input (with the correct, broader accept list) at runtime.
+     Having a second copy here with the same id caused
+     document.getElementById("cellFileInput") to grab THIS stale node
+     instead, which is why screenshots (PNG) were silently rejected. -->
 
 
 <!-- The invisible popup container -->
