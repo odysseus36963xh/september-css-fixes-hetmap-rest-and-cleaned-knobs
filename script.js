@@ -1178,16 +1178,26 @@ function getCellCleanText(cell) {
 
 // Builds and shows one bubble (media on top, written content underneath,
 // same look/position as the existing media popup). Only one bubble is ever
-// shown at a time: whenever a new cell fires, its bubble replaces whatever
-// bubble is currently on screen — even when overlap is on and multiple
-// cells' audio is playing simultaneously. This is purely visual; it has no
-// effect on which cells' audio plays or how overlap timing works.
+// VISIBLE at a time: whenever a new cell fires, its bubble replaces
+// whatever bubble is currently on screen — even when overlap is on and
+// multiple cells' audio is playing simultaneously.
+//
+// IMPORTANT: the old bubble is hidden, not deleted, if it might still
+// contain a playing <audio> element. Deleting it from the DOM (e.g. via
+// container.innerHTML = "") can silently stop that audio and/or prevent
+// its "ended" event from firing — and the reading engine waits on that
+// event to know when it's safe to repeat/advance past a row. The old
+// bubble's own audio-ended handler (see playAndWaitForAudio's done())
+// removes it for real once its audio has actually finished.
 function presentCellBubble(cell, { images = [], videos = [], text = "" } = {}) {
   const container = document.getElementById("mediaPopup");
   if (!container) return null;
   if (!images.length && !videos.length && !text) return null;
 
-  container.innerHTML = "";
+  Array.from(container.children).forEach(child => {
+    child.classList.remove("bubbleShow");
+    child.classList.add("bubbleHidden");
+  });
 
   const group = document.createElement("div");
   group.className = "bubbleGroup";
