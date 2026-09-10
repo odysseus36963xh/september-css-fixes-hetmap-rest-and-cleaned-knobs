@@ -396,36 +396,44 @@ animation: micPulse 1s infinite;
 }
 
 /* 2. The Card Popup Effect (For Images/Video/Text) */
-/* Container: holds a single bubble group at a time — the newest cell's
-   bubble always replaces whatever was showing, even with overlap on */
+/* Container: a zero-size anchor point at dead-center of the screen.
+   Each bubble positions and centers ITSELF (see .bubbleGroup below),
+   so this no longer uses flex/row/gap — that layout was the cause of
+   the "cards sliding past each other" look: with 2 children present
+   (the fading-out one plus the new one), the flex row's own width grew
+   to fit both, which shifted where the whole row was centered. Now
+   every bubble stacks in the exact same centered spot regardless of
+   how many are in the DOM, so switching bubbles is a straight
+   cross-fade in place, never a slide. */
 #mediaPopup {
 position: fixed;
 top: 50%;
 left: 50%;
-transform: translate(-50%, -50%);
 z-index: 9999;
-display: flex;
-flex-direction: row;
-align-items: flex-end;
-gap: 18px;
 pointer-events: none;
 }
 
-/* One bubble group = media bubble on top + written-content bubble under it */
+/* One bubble group = media bubble on top + written-content bubble under it.
+   Absolutely positioned and self-centered on #mediaPopup's anchor point —
+   this is the single line that pins every bubble to dead-center of the
+   screen, no matter how many bubbles happen to be in the DOM. */
 .bubbleGroup {
+position: absolute;
+top: 0;
+left: 0;
 display: flex;
 flex-direction: column;
 align-items: center;
 gap: 8px;
 opacity: 0;
-transform: scale(0.8) translateY(10px);
-transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+transform: translate(-50%, -50%) scale(0.8);
+transition: opacity 0.3s ease, transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 pointer-events: auto;
 }
 
 .bubbleGroup.bubbleShow {
 opacity: 1;
-transform: scale(1) translateY(0);
+transform: translate(-50%, -50%) scale(1);
 }
 
 /* Previous bubble, faded out but still in the DOM (may contain a
