@@ -1177,22 +1177,17 @@ function getCellCleanText(cell) {
 }
 
 // Builds and shows one bubble (media on top, written content underneath,
-// same look/position as the existing media popup). When overlap is off,
-// this replaces whatever bubble is currently showing (original behavior).
-// When overlap is on, up to 2 bubbles can be visible at once; the oldest
-// is dropped to make room and the newest bubble stacks to the right.
+// same look/position as the existing media popup). Only one bubble is ever
+// shown at a time: whenever a new cell fires, its bubble replaces whatever
+// bubble is currently on screen — even when overlap is on and multiple
+// cells' audio is playing simultaneously. This is purely visual; it has no
+// effect on which cells' audio plays or how overlap timing works.
 function presentCellBubble(cell, { images = [], videos = [], text = "" } = {}) {
   const container = document.getElementById("mediaPopup");
   if (!container) return null;
   if (!images.length && !videos.length && !text) return null;
 
-  if (!isOverlapModeOn()) {
-    container.innerHTML = "";
-  } else {
-    while (container.children.length >= 2) {
-      container.removeChild(container.firstElementChild);
-    }
-  }
+  container.innerHTML = "";
 
   const group = document.createElement("div");
   group.className = "bubbleGroup";

@@ -396,7 +396,8 @@ animation: micPulse 1s infinite;
 }
 
 /* 2. The Card Popup Effect (For Images/Video/Text) */
-/* Container: holds up to 2 bubble groups side by side, newest on the right */
+/* Container: holds a single bubble group at a time — the newest cell's
+   bubble always replaces whatever was showing, even with overlap on */
 #mediaPopup {
 position: fixed;
 top: 50%;
